@@ -467,11 +467,10 @@ def heartbeat_loop():
     t.start()
 
 
-def main():
-    init_db()
-    di = detect_device()
-    print(f"[worker {WORKER_ID}] device={di.device} name={di.name} cuda={di.cuda_available}")
-    # register worker
+def register_worker(di=None) -> None:
+    """Register (or refresh) this worker row in the DB."""
+    if di is None:
+        di = detect_device()
     db = SessionLocal()
     w = db.query(M.Worker).filter(M.Worker.id == WORKER_ID).first()
     if not w:
@@ -481,6 +480,18 @@ def main():
     else:
         w.status = "idle"
     db.commit(); db.close()
+
+
+def run_worker_loop() -> None:
+    """Main worker loop: register, start heartbeat, poll for jobs forever.
+
+    Used both by the standalone worker process (``python -m apps.api.worker``)
+    and by the inline worker started inside the API process for single-service
+    Railway deployment.
+    """
+    di = detect_device()
+    print(f"[worker {WORKER_ID}] device={di.device} name={di.name} cuda={di.cuda_available}")
+    register_worker(di)
     heartbeat_loop()
     print("[worker] polling for jobs...")
     while True:
@@ -502,6 +513,11 @@ def main():
         except Exception as e:
             traceback.print_exc()
             time.sleep(5)
+
+
+def main():
+    init_db()
+    run_worker_loop()
 
 
 if __name__ == "__main__":
