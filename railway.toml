@@ -1,0 +1,17 @@
+# Railway deployment configuration.
+# Docs: https://docs.railway.app/deploy/config-as-code
+
+[deploy]
+# Health check the FastAPI endpoint before marking the service live.
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+# Restart policy: keep the service alive across transient failures.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# A single web service handles both the API and the inline training worker
+# (RUN_INLINE_WORKER=true by default). To run a dedicated worker, add a second
+# service with startCommand = "python -m apps.api.worker" and RUN_INLINE_WORKER=false.
+[deploy.service]
+# Explicit start command (overrides Dockerfile CMD) — keeps PORT dynamic.
+startCommand = "sh -c 'python -m uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
